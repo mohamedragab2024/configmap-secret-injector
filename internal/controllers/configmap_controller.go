@@ -26,24 +26,30 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if cm.ObjectMeta.Annotations["secret-injector/enabled"] == "true" && cm.ObjectMeta.Annotations["secret-injector/secret-name"] != "" {
-		r.Logger.Info().Msgf("ConfigMap %s/%s is enabled for secret injection", cm.Namespace, cm.Name)
-		sr := &corev1.Secret{}
-		err := r.Get(ctx, client.ObjectKey{Namespace: cm.Namespace, Name: cm.ObjectMeta.Annotations["secret-injector/secret-name"]}, sr)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		cmdata := configMapSubstitute(cm.Data, sr.Data)
-		cm.Data = cmdata
-		uerr := r.Update(ctx, cm)
-		if uerr != nil {
-			return ctrl.Result{}, uerr
-		}
+	return r.processConfigMapInjection(ctx, cm)
+}
 
-		r.Logger.Info().Msgf("ConfigMap %s/%s has been updated", cm.Namespace, cm.Name)
+func (r *ConfigMapReconciler) processConfigMapInjection(ctx context.Context, cm *corev1.ConfigMap) (ctrl.Result, error) {
+	if cm.ObjectMeta.Annotations["secret-injector/enabled"] != "true" || cm.ObjectMeta.Annotations["secret-injector/secret-name"] == "" {
 		return ctrl.Result{}, nil
 	}
 
+	r.Logger.Info().Msgf("ConfigMap %s/%s is enabled for secret injection", cm.Namespace, cm.Name)
+	s := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: cm.Namespace,
+		Name:      cm.ObjectMeta.Annotations["secret-injector/secret-name"],
+	}, s)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	cm.Data = configMapSubstitute(cm.Data, s.Data)
+	if err := r.Update(ctx, cm); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	r.Logger.Info().Msgf("ConfigMap %s/%s has been updated", cm.Namespace, cm.Name)
 	return ctrl.Result{}, nil
 
 }
@@ -53,10 +59,10 @@ func (r *ConfigMapReconciler) New(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func configMapSubstitute(cm map[string]string, sr map[string][]byte) map[string]string {
+func configMapSubstitute(cm map[string]string, s map[string][]byte) map[string]string {
 	cmdata := make(map[string]string)
 	for k, v := range cm {
-		for sk, sv := range sr {
+		for sk, sv := range s {
 			if strings.Contains(v, fmt.Sprintf("{%s}", sk)) {
 				cmdata[k] = strings.ReplaceAll(v, fmt.Sprintf("{%s}", sk), strings.TrimSpace(string(sv)))
 			} else {
