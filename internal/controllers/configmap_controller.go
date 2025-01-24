@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
@@ -43,13 +44,15 @@ func (r *ConfigMapReconciler) processConfigMapInjection(ctx context.Context, cm 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	cm.Data = configMapSubstitute(cm.Data, s.Data)
-	if err := r.Update(ctx, cm); err != nil {
-		return ctrl.Result{}, err
+	injected := false
+	cm.Data, injected = configMapSubstitute(cm.Data, s.Data)
+	if injected {
+		cm.ObjectMeta.Annotations["secret-injector/last-inject-date"] = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+		if err := r.Update(ctx, cm); err != nil {
+			return ctrl.Result{}, err
+		}
+		r.Logger.Info().Msgf("ConfigMap %s/%s has been updated", cm.Namespace, cm.Name)
 	}
-
-	r.Logger.Info().Msgf("ConfigMap %s/%s has been updated", cm.Namespace, cm.Name)
 	return ctrl.Result{}, nil
 
 }
@@ -59,16 +62,18 @@ func (r *ConfigMapReconciler) New(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func configMapSubstitute(cm map[string]string, s map[string][]byte) map[string]string {
+func configMapSubstitute(cm map[string]string, s map[string][]byte) (map[string]string, bool) {
+	injected := false
 	cmdata := make(map[string]string)
 	for k, v := range cm {
 		for sk, sv := range s {
-			if strings.Contains(v, fmt.Sprintf("{%s}", sk)) {
-				cmdata[k] = strings.ReplaceAll(v, fmt.Sprintf("{%s}", sk), strings.TrimSpace(string(sv)))
+			if strings.Contains(v, fmt.Sprintf("${%s}", sk)) {
+				cmdata[k] = strings.ReplaceAll(v, fmt.Sprintf("${%s}", sk), strings.TrimSpace(string(sv)))
+				injected = true
 			} else {
 				cmdata[k] = v
 			}
 		}
 	}
-	return cmdata
+	return cmdata, injected
 }
