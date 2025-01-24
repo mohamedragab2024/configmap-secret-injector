@@ -1,31 +1,23 @@
 # Golang Kubernetes Operator
 
-This project is a simple Kubernetes operator written in Go that watches for changes in ConfigMaps. It specifically looks for ConfigMaps that contain the annotation `secret-injected: true` and updates their data accordingly.
+This project is a simple Kubernetes operator written in Go that watches for changes in ConfigMaps. It specifically looks for ConfigMaps that contain the annotation `secret-injector/enabled: true` and updates their data accordingly.
 
 ## Project Structure
 
 ```
 golang-k8s-operator
+├── bin
+│   └── configmap-secret-injector # Compiled binary
 ├── cmd
-│   └── manager
-│       └── main.go          # Entry point of the operator
-├── config
-│   ├── crd
-│   │   └── bases            # Directory for Custom Resource Definitions (CRDs)
-│   ├── default              # Default configuration files
-│   ├── manager              # Configuration files for the manager
-│   ├── rbac                 # Role-Based Access Control (RBAC) configuration files
-│   └── samples              # Sample ConfigMaps and resources
-├── controllers
-│   └── configmap_controller.go # Implementation of the ConfigMap controller
-├── api
-│   └── v1
-│       └── groupversion_info.go # API group and version information
-├── Dockerfile                # Instructions for building the Docker image
-├── go.mod                    # Module dependencies
-├── go.sum                    # Checksums for module dependencies
-├── Makefile                  # Commands for building and managing the operator
-└── README.md                 # Project documentation
+│   └── main.go                   # Entry point of the operator
+├── internal
+│   └── controllers
+│       └── configmap_controller.go # Implementation of the ConfigMap controller
+├── Dockerfile                    # Instructions for building the Docker image
+├── go.mod                        # Module dependencies
+├── go.sum                        # Checksums for module dependencies
+├── Makefile                      # Commands for building and managing the operator
+└── README.md                     # Project documentation
 ```
 
 ## Getting Started
@@ -34,7 +26,7 @@ To get started with this operator, follow these steps:
 
 1. **Clone the repository**:
    ```
-   git clone <repository-url>
+   git clone https://github.com/mohamedragab2024/configmap-secret-injector.git
    cd golang-k8s-operator
    ```
 
@@ -50,7 +42,7 @@ To get started with this operator, follow these steps:
 
 ## Usage
 
-This operator will watch for ConfigMaps in the Kubernetes cluster. Ensure that your ConfigMaps have the annotation `secret-injected: true` for the operator to take action.
+This operator will watch for ConfigMaps in the Kubernetes cluster. Ensure that your ConfigMaps have the annotation `secret-injector/enabled: true` and specify the secret name with `secret-injector/secret-name` for the operator to take action.
 
 ## Contributing
 
