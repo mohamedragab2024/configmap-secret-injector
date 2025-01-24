@@ -14,9 +14,6 @@ The operator simplifies secret management by eliminating manual secret injection
 ## Project Structure
 
 ```
-golang-k8s-operator
-├── bin
-│   └── configmap-secret-injector # Compiled binary
 ├── cmd
 │   └── main.go                   # Entry point of the operator
 ├── internal
