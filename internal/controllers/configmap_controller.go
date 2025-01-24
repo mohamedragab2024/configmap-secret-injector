@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -17,6 +18,7 @@ type ConfigMapReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	Logger *zerolog.Logger
+	mu     sync.Mutex
 }
 
 func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -47,6 +49,8 @@ func (r *ConfigMapReconciler) processConfigMapInjection(ctx context.Context, cm 
 	injected := false
 	cm.Data, injected = configMapSubstitute(cm.Data, s.Data)
 	if injected {
+		r.mu.Lock()
+		defer r.mu.Unlock()
 		cm.ObjectMeta.Annotations["secret-injector/last-inject-date"] = time.Now().UTC().Format("2006-01-02T15:04:05Z")
 		if err := r.Update(ctx, cm); err != nil {
 			return ctrl.Result{}, err
@@ -54,8 +58,8 @@ func (r *ConfigMapReconciler) processConfigMapInjection(ctx context.Context, cm 
 		r.Logger.Info().Msgf("ConfigMap %s/%s has been updated", cm.Namespace, cm.Name)
 	}
 	return ctrl.Result{}, nil
-
 }
+
 func (r *ConfigMapReconciler) New(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.ConfigMap{}).
@@ -66,13 +70,16 @@ func configMapSubstitute(cm map[string]string, s map[string][]byte) (map[string]
 	injected := false
 	cmdata := make(map[string]string)
 	for k, v := range cm {
+		originalValue := v
 		for sk, sv := range s {
-			if strings.Contains(v, fmt.Sprintf("${%s}", sk)) {
-				cmdata[k] = strings.ReplaceAll(v, fmt.Sprintf("${%s}", sk), strings.TrimSpace(string(sv)))
-				injected = true
-			} else {
-				cmdata[k] = v
+			placeholder := fmt.Sprintf("${%s}", sk)
+			if strings.Contains(v, placeholder) {
+				v = strings.ReplaceAll(v, placeholder, strings.TrimSpace(string(sv)))
 			}
+		}
+		cmdata[k] = v
+		if v != originalValue {
+			injected = true
 		}
 	}
 	return cmdata, injected

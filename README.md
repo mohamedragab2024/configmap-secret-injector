@@ -1,6 +1,15 @@
 # Golang Kubernetes Operator
 
-This project is a simple Kubernetes operator written in Go that watches for changes in ConfigMaps. It specifically looks for ConfigMaps that contain the annotation `secret-injector/enabled: true` and updates their data accordingly.
+This project is a Kubernetes operator built in Go that automatically injects secret values into ConfigMaps. Key features:
+
+- Monitors ConfigMaps with annotation `secret-injector/enabled: true`
+- Retrieves values from Kubernetes Secrets specified via `secret-injector/secret-name` annotation
+- Automatically replaces placeholders like `${secret-key}` with corresponding secret values
+- Maintains synchronization by updating ConfigMaps when source secrets change
+- Securely handles sensitive data through native Kubernetes mechanisms
+
+The operator simplifies secret management by eliminating manual secret injection while maintaining security best practices.
+
 
 ## Project Structure
 
