@@ -51,7 +51,7 @@ func (r *ConfigMapReconciler) processConfigMapInjection(ctx context.Context, cm 
 	if injected {
 		r.mu.Lock()
 		defer r.mu.Unlock()
-		cm.ObjectMeta.Annotations["secret-injector/last-inject-date"] = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+		cm.ObjectMeta.Annotations["secret-injector/last-inject-date"] = time.Now().UTC().Format("0000-00-00T00:00:00Z")
 		if err := r.Update(ctx, cm); err != nil {
 			return ctrl.Result{}, err
 		}
